@@ -1,0 +1,11 @@
+--- sdi_scheduler.go
++++ sdi_scheduler.go (patched)
+@@ -67,7 +67,7 @@
+ 		},
+ 	}
+ 
+-	if s, err := fetchScoresFromAnalysisEngine(context.Background()); err == nil {
++	if s, err := fetchScores(context.Background()); err == nil {
+ 		p.scores = s
+ 	} else {
+ 		fmt.Printf("[SDI] analysis engine fetch failed: %v\n", err)

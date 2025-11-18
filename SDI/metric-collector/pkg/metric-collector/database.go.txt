@@ -1,0 +1,66 @@
+package metriccollector
+
+import (
+	"context"
+	"fmt"
+	"os"
+
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+)
+
+type DBClient struct {
+	client influxdb2.Client
+	org    string
+	bucket string
+}
+
+func NewDBClient() (*DBClient, error) {
+	url := os.Getenv("INFLUXDB_URL")
+	token := os.Getenv("INFLUXDB_TOKEN")
+	org := os.Getenv("INFLUXDB_ORG")
+	bucket := os.Getenv("INFLUXDB_BUCKET")
+
+	if url == "" || token == "" || org == "" || bucket == "" {
+		return nil, fmt.Errorf("InfluxDB environment variables (INFLUXDB_URL, INFLUXDB_TOKEN, INFLUXDB_ORG, INFLUXDB_BUCKET) must be set")
+	}
+
+	client := influxdb2.NewClient(url, token)
+	_, err := client.Health(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to InfluxDB: %w", err)
+	}
+
+	return &DBClient{
+		client: client,
+		org:    org,
+		bucket: bucket,
+	}, nil
+}
+
+func (c *DBClient) WriteMetrics(ctx context.Context, metrics []NodeMetric) error {
+	writeAPI := c.client.WriteAPIBlocking(c.org, c.bucket)
+
+	for _, m := range metrics {
+		p := influxdb2.NewPoint(
+			"node_metrics",
+			map[string]string{"node_name": m.Name},
+			map[string]interface{}{
+				"cpu_usage":        m.CPUUsage.MilliValue(),
+				"memory_usage":     m.MemoryUsage.Value(),
+				"cpu_capacity":     m.CPUCapacity.MilliValue(),
+				"memory_capacity":  m.MemoryCapacity.Value(),
+				"cpu_allocatable":  m.CPUAllocatable.MilliValue(),
+				"memory_allocatable": m.MemoryAllocatable.Value(),
+			},
+			m.Timestamp,
+		)
+		if err := writeAPI.WritePoint(ctx, p); err != nil {
+			return fmt.Errorf("failed to write metric for node %s: %w", m.Name, err)
+		}
+	}
+	return nil
+}
+
+func (c *DBClient) Close() {
+	c.client.Close()
+}

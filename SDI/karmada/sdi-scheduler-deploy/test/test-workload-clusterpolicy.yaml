@@ -1,0 +1,22 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterPropagationPolicy
+metadata:
+  name: mc-test-sdi
+spec:
+  schedulerName: sdi-cluster-scheduler   
+  resourceSelectors:
+    - apiVersion: v1
+      kind: Namespace
+      name: mc-test
+    - apiVersion: apps/v1
+      kind: Deployment
+      namespace: mc-test
+      name: web-sdi
+    - apiVersion: v1
+      kind: Service
+      namespace: mc-test
+      name: web-sdi
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - edge-cluster    

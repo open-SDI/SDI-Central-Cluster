@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    cni.projectcalico.org/containerID: 7cfa7170c2543c4198c10d566c4eb362f9914619d0164768335961ef43492370
+    cni.projectcalico.org/podIP: 10.244.83.155/32
+    cni.projectcalico.org/podIPs: 10.244.83.155/32
+  creationTimestamp: "2025-08-11T05:23:41Z"
+  generateName: ml-inference-service-755d5c4c4d-
+  labels:
+    app: ml-inference
+    pod-template-hash: 755d5c4c4d
+    type: machine-learning
+  name: ml-inference-service-755d5c4c4d-gnk9n
+  namespace: default
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: ReplicaSet
+    name: ml-inference-service-755d5c4c4d
+    uid: 1b30aaf4-e0e8-477f-8c56-bfd0f1f7d004
+  resourceVersion: "1226570"
+  uid: e0fa587a-eb6a-4d7f-a80d-67483d16e7d9
+spec:
+  containers:
+  - env: # Analysis Engine에서 확인해야하는 부분
+    - name: SERVICE_TYPE
+      value: ml-inference
+    - name: MALE_ACCURACY
+      value: "800"
+    - name: MALE_LATENCY
+      value: "200"
+    - name: MALE_ENERGY
+      value: "600"
+    image: nginx:latest
+    imagePullPolicy: Always
+    name: inference-container
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-48jpp
+      readOnly: true
+  dnsPolicy: ClusterFirst
+  enableServiceLinks: true
+  nodeName: sdi-central-cluster-control-plane # 스케줄링 됐을때 해당 부분이 지금 처럼 이름이 생김 원래는 공간이거나 none 이런식으로 되어있습니다.
+  preemptionPolicy: PreemptLowerPriority
+  priority: 0
+  restartPolicy: Always
+  schedulerName: default-scheduler
+  securityContext: {}
+  serviceAccount: default
+  serviceAccountName: default
+  terminationGracePeriodSeconds: 30
+  tolerations:
+  - effect: NoExecute
+    key: node.kubernetes.io/not-ready
+    operator: Exists
+    tolerationSeconds: 300
+  - effect: NoExecute
+    key: node.kubernetes.io/unreachable
+    operator: Exists
+    tolerationSeconds: 300
+  volumes:
+  - name: kube-api-access-48jpp
+    projected:
+      defaultMode: 420
+      sources:
+      - serviceAccountToken:
+          expirationSeconds: 3607
+          path: token
+      - configMap:
+          items:
+          - key: ca.crt
+            path: ca.crt
+          name: kube-root-ca.crt
+      - downwardAPI:
+          items:
+          - fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+            path: namespace
+status:
+  conditions:
+  - lastProbeTime: null
+    lastTransitionTime: "2025-08-11T05:23:41Z"
+    status: "True"
+    type: Initialized
+  - lastProbeTime: null
+    lastTransitionTime: "2025-08-11T05:23:44Z"
+    status: "True"
+    type: Ready
+  - lastProbeTime: null
+    lastTransitionTime: "2025-08-11T05:23:44Z"
+    status: "True"
+    type: ContainersReady
+  - lastProbeTime: null
+    lastTransitionTime: "2025-08-11T05:23:41Z"
+    status: "True"
+    type: PodScheduled
+  containerStatuses:
+  - containerID: containerd://4112b4d9f7d55c9e34a9bbd91d4d236cbb70ed570ecbc18a6b97a591a8feef24
+    image: docker.io/library/nginx:latest
+    imageID: docker.io/library/nginx@sha256:84ec966e61a8c7846f509da7eb081c55c1d56817448728924a87ab32f12a72fb
+    lastState: {}
+    name: inference-container
+    ready: true
+    restartCount: 0
+    started: true
+    state:
+      running:
+        startedAt: "2025-08-11T05:23:43Z"
+  hostIP: 10.0.1.70
+  phase: Running
+  podIP: 10.244.83.155
+  podIPs:
+  - ip: 10.244.83.155
+  qosClass: Burstable
+  startTime: "2025-08-11T05:23:41Z"

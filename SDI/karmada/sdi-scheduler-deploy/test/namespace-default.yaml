@@ -1,0 +1,13 @@
+
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterPropagationPolicy
+metadata:
+  name: mc-test-ns-default
+spec:
+  resourceSelectors:
+    - apiVersion: v1
+      kind: Namespace
+      name: mc-test
+  placement:
+    clusterAffinity:
+      clusterNames: [ edge-cluster ]   

@@ -1,0 +1,33 @@
+# apiVersion: v1
+# kind: Namespace
+# metadata:
+#   name: mc-test
+# ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-sdi
+  namespace: mc-test
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: web-sdi } }
+  template:
+    metadata: { labels: { app: web-sdi } }
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.24
+          ports: [{ containerPort: 80 }]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-sdi
+  namespace: mc-test
+spec:
+  type: NodePort
+  selector: { app: web-sdi }
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
