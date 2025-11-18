@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prom-karmada
+  namespace: monitor
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prom-karmada-cluster-proxy
+rules:
+- apiGroups: ["cluster.karmada.io"]
+  resources: ["clusters/proxy"]
+  resourceNames: ["k3s-cluster"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prom-karmada-cluster-proxy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prom-karmada-cluster-proxy
+subjects:
+- kind: ServiceAccount
+  name: prom-karmada
+  namespace: monitor
+---
+# ServiceAccount token - Kubernetes will populate 'data.token'
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prom-karmada-token
+  namespace: monitor
+  annotations:
+    kubernetes.io/service-account.name: prom-karmada
+type: kubernetes.io/service-account-token

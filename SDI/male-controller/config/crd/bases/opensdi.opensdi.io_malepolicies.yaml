@@ -1,0 +1,136 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: malepolicies.opensdi.opensdi.io
+spec:
+  group: opensdi.opensdi.io
+  names:
+    kind: MALEPolicy
+    listKind: MALEPolicyList
+    plural: malepolicies
+    singular: malepolicy
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: MALEPolicy is the Schema for the malepolicies API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: spec defines the desired state of MALEPolicy
+            properties:
+              accuracy:
+                description: 정확도 요구 수준 (0–1000)
+                format: int32
+                maximum: 1000
+                minimum: 0
+                type: integer
+              description:
+                type: string
+              energy:
+                description: 전력 효율 (0–1000)
+                format: int32
+                maximum: 1000
+                minimum: 0
+                type: integer
+              globalDefault:
+                type: boolean
+              latency:
+                description: 지연 민감도 (0–1000)
+                format: int32
+                maximum: 1000
+                minimum: 0
+                type: integer
+              preemptionPolicy:
+                type: string
+              selector:
+                additionalProperties:
+                  type: string
+                description: 워크로드 선택을 위한 라벨 셀렉터
+                type: object
+              targetNamespaces:
+                description: 네임스페이스 선택 (빈 값이면 모든 네임스페이스)
+                items:
+                  type: string
+                type: array
+              targetWorkloads:
+                description: 특정 워크로드 이름으로 직접 지정
+                items:
+                  description: WorkloadTarget represents a specific workload to target
+                  properties:
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                  - kind
+                  - name
+                  - namespace
+                  type: object
+                type: array
+            required:
+            - accuracy
+            - energy
+            - latency
+            type: object
+          status:
+            description: status defines the observed state of MALEPolicy
+            properties:
+              appliedWorkloads:
+                description: 적용된 워크로드 개수
+                format: int32
+                type: integer
+              lastUpdated:
+                description: 마지막 업데이트 시간
+                type: string
+              workloadStatus:
+                description: 적용된 워크로드 목록
+                items:
+                  description: WorkloadStatus represents the status of a workload
+                    affected by this policy
+                  properties:
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                    status:
+                      type: string
+                  required:
+                  - kind
+                  - name
+                  - namespace
+                  - status
+                  type: object
+                type: array
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

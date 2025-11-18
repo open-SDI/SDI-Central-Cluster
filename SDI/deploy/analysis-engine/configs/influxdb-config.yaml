@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: influxdb-config
+  namespace: default
+data:
+  influxdDB-Information.txt: |
+    # InfluxDB Configuration
+    # URL: http://10.0.5.52:32086
+    # ORG: keti
+    # BUCKET: turtlebot

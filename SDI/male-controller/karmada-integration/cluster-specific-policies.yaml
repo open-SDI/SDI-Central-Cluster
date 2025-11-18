@@ -1,0 +1,178 @@
+# 클러스터별 MALE 정책 차별화 예시
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: edge-optimized-policy
+spec:
+  accuracy: 700
+  latency: 400
+  energy: 900    # Edge에서는 전력 효율성이 중요
+  selector:
+    type: "machine-learning"
+    deployment-target: "edge"
+  targetNamespaces:
+  - "default"
+  description: "Edge cluster optimized ML policy"
+---
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: gpu-cluster-policy
+spec:
+  accuracy: 950   # GPU 클러스터에서는 고성능
+  latency: 80
+  energy: 400
+  selector:
+    type: "machine-learning"
+    deployment-target: "gpu"
+  targetNamespaces:
+  - "default"
+  description: "GPU cluster high-performance ML policy"
+---
+# Karmada PropagationPolicy - 클러스터 타입에 따른 자동 라벨 추가
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: ml-workload-distribution
+spec:
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    labelSelector:
+      matchLabels:
+        type: machine-learning
+  placement:
+    clusterAffinity:
+      clusterNames:
+      - edge-cluster-1
+      - edge-cluster-2  
+      - gpu-cluster-1
+      - cpu-cluster-1
+    spreadConstraints:
+    - spreadByField: cluster
+      maxGroups: 4
+    - spreadByLabel: cluster-type
+      maxGroups: 3
+---
+# 클러스터별 오버라이드 정책
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterOverridePolicy
+metadata:
+  name: edge-cluster-overrides
+spec:
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    labelSelector:
+      matchLabels:
+        type: machine-learning
+  targetCluster:
+    clusterNames:
+    - edge-cluster-1
+    - edge-cluster-2
+  overriders:
+    # Edge 클러스터용 라벨 자동 추가
+    labelsOverrider:
+    - operator: add
+      value:
+        deployment-target: "edge"
+        cluster-type: "edge"
+        male-policy.opensdi.io/cluster-profile: "energy-optimized"
+    # Edge 클러스터용 어노테이션 추가
+    annotationsOverrider:
+    - operator: add
+      value:
+        male-policy.opensdi.io/cluster-capabilities: "low-power,battery-operated"
+        male-policy.opensdi.io/auto-scaling: "conservative"
+    # 리소스 제한 조정
+    resourcesOverrider:
+    - operator: add
+      value:
+        requests:
+          cpu: "200m"
+          memory: "256Mi" 
+        limits:
+          cpu: "500m"
+          memory: "512Mi"
+---
+apiVersion: policy.karmada.io/v1alpha1  
+kind: ClusterOverridePolicy
+metadata:
+  name: gpu-cluster-overrides
+spec:
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    labelSelector:
+      matchLabels:
+        type: machine-learning
+  targetCluster:
+    clusterNames:
+    - gpu-cluster-1
+  overriders:
+    # GPU 클러스터용 라벨 자동 추가
+    labelsOverrider:
+    - operator: add
+      value:
+        deployment-target: "gpu"
+        cluster-type: "gpu"
+        male-policy.opensdi.io/cluster-profile: "performance-optimized"
+    # GPU 클러스터용 어노테이션 추가
+    annotationsOverrider:
+    - operator: add
+      value:
+        male-policy.opensdi.io/cluster-capabilities: "gpu-accelerated,high-memory"
+        male-policy.opensdi.io/auto-scaling: "aggressive"
+    # GPU 리소스 추가
+    resourcesOverrider:
+    - operator: add
+      value:
+        requests:
+          cpu: "1000m"
+          memory: "2Gi"
+          nvidia.com/gpu: 1
+        limits:
+          cpu: "4000m" 
+          memory: "8Gi"
+          nvidia.com/gpu: 1
+---
+# 클러스터 리소스 상태 기반 동적 MALE 조정을 위한 ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: male-cluster-profiles
+  namespace: male-controller-system
+data:
+  cluster-profiles.yaml: |
+    profiles:
+      edge:
+        priority: energy
+        adjustments:
+          accuracy: -50    # 정확도 50 감소
+          latency: +100    # 지연시간 허용도 100 증가  
+          energy: +200     # 전력 효율성 200 증가
+        constraints:
+          max_replicas: 2
+          cpu_limit: "500m"
+          memory_limit: "512Mi"
+      
+      gpu:
+        priority: performance
+        adjustments:
+          accuracy: +100   # 정확도 100 증가
+          latency: -50     # 지연시간 50 감소
+          energy: -100     # 전력 효율성 100 감소 (성능 우선)
+        constraints:
+          min_replicas: 2
+          gpu_required: true
+          
+      cpu:
+        priority: balanced
+        adjustments:
+          accuracy: 0      # 기본값 유지
+          latency: 0       # 기본값 유지
+          energy: +50      # 전력 효율성 약간 증가
+        constraints:
+          max_replicas: 4
+          cpu_limit: "2000m"
+          memory_limit: "4Gi"

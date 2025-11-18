@@ -1,0 +1,99 @@
+# 0) 네임스페이스 (없으면 생성)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ai
+---
+# 1) PVC: k3s 기본 local-path 스토리지 사용
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models-pvc
+  namespace: ai
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: local-path
+---
+# 2) Deployment: ARM64 노드에 스케줄 + PVC로 모델 캐시 영속화
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-cpu
+  namespace: ai
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llm-cpu
+  template:
+    metadata:
+      labels:
+        app: llm-cpu
+    spec:
+      schedulerName: sdi-scheduler
+      containers:
+      - name: ollama
+        image: ollama/ollama:latest
+        ports:
+        - containerPort: 11434
+
+        # 모델 캐시 영속화
+        volumeMounts:
+        - name: models
+          mountPath: /root/.ollama
+
+        # 기동 직후 TinyLlama 미리 풀(빠른 Ready)
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh","-c","/bin/ollama pull tinyllama || true"]
+
+        # 헬스체크
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 11434
+          initialDelaySeconds: 8
+          periodSeconds: 5
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 11434
+          initialDelaySeconds: 20
+          periodSeconds: 10
+
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "1Gi"
+          limits:
+            cpu: "1"
+            memory: "2Gi"
+
+      volumes:
+      - name: models
+        persistentVolumeClaim:
+          claimName: ollama-models-pvc
+---
+# 3) Service: ClusterIP 노출
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-cpu-svc
+  namespace: ai
+spec:
+  selector:
+    app: llm-cpu
+  ports:
+  - name: http
+    port: 11434
+    targetPort: 11434
+    protocol: TCP
+  type: ClusterIP
+
+

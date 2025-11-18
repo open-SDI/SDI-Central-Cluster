@@ -1,0 +1,54 @@
+# 실시간 MALE 정책 조정 예시
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: dynamic-adjustment-policy
+  namespace: default
+spec:
+  # 기본 MALE 값
+  accuracy: 800
+  latency: 200
+  energy: 600
+  
+  # 타겟 워크로드 지정
+  selector:
+    type: "machine-learning"
+    environment: "production"
+  
+  description: "동적 조정 가능한 ML 정책"
+---
+# 조정된 정책 (높은 성능 요구)
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: high-performance-adjustment
+  namespace: default
+spec:
+  # 고성능 MALE 값
+  accuracy: 950  # 정확도 증가
+  latency: 50    # 지연시간 감소
+  energy: 400    # 전력효율 타협
+  
+  selector:
+    type: "machine-learning"
+    tier: "critical"
+  
+  description: "고성능 요구사항을 위한 조정된 정책"
+---
+# 전력효율 우선 조정
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: energy-efficient-adjustment
+  namespace: default
+spec:
+  # 전력효율 우선 MALE 값
+  accuracy: 600  # 정확도 다소 타협
+  latency: 400   # 지연시간 허용
+  energy: 900    # 전력효율 최우선
+  
+  selector:
+    type: "batch-processing"
+    workload: "training"
+  
+  description: "전력효율성을 위한 조정된 정책"

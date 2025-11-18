@@ -1,0 +1,129 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: male-controller-alerts
+  namespace: male-controller-system
+  labels:
+    app.kubernetes.io/name: male-controller
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+  - name: male-controller.rules
+    rules:
+    # Policy Application Failure Rate
+    - alert: MALEPolicyHighFailureRate
+      expr: |
+        (
+          sum(rate(male_policy_applications_total{status="failed"}[5m])) 
+          / 
+          sum(rate(male_policy_applications_total[5m]))
+        ) * 100 > 10
+      for: 2m
+      labels:
+        severity: warning
+        component: male-controller
+      annotations:
+        summary: "High MALE policy application failure rate"
+        description: "Policy application failure rate is {{ $value }}% over the last 5 minutes"
+    
+    # No Recent Policy Applications
+    - alert: MALEPolicyNoActivity
+      expr: |
+        sum(increase(male_policy_applications_total[10m])) == 0
+      for: 10m
+      labels:
+        severity: info
+        component: male-controller
+      annotations:
+        summary: "No MALE policy applications in the last 10 minutes"
+        description: "The MALE controller has not applied any policies recently"
+    
+    # Controller Down
+    - alert: MALEControllerDown
+      expr: |
+        up{job="male-controller-metrics"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        component: male-controller
+      annotations:
+        summary: "MALE Controller is down"
+        description: "The MALE controller has been down for more than 1 minute"
+    
+    # High Policy Application Duration
+    - alert: MALEPolicySlowApplication
+      expr: |
+        histogram_quantile(0.95, 
+          sum(rate(male_policy_application_duration_seconds_bucket[5m])) by (le)
+        ) > 30
+      for: 5m
+      labels:
+        severity: warning
+        component: male-controller
+      annotations:
+        summary: "MALE policy applications are taking too long"
+        description: "95th percentile of policy application duration is {{ $value }}s"
+    
+    # Cluster Profile Discovery Issues
+    - alert: MALEClusterProfileIssues
+      expr: |
+        male_cluster_profile_info{type="unknown"} > 0
+      for: 5m
+      labels:
+        severity: warning
+        component: male-controller
+      annotations:
+        summary: "Cluster profile discovery issues detected"
+        description: "Some clusters have unknown profile types"
+    
+    # Policy Validation Failures
+    - alert: MALEPolicyValidationFailures
+      expr: |
+        sum(rate(male_policy_applications_total{status="validation_failed"}[5m])) > 0
+      for: 2m
+      labels:
+        severity: warning
+        component: male-controller
+      annotations:
+        summary: "MALE policy validation failures detected"
+        description: "Policies are failing validation at {{ $value }} per second"
+    
+    # Workload Health Issues
+    - alert: MALEWorkloadHealthDegraded
+      expr: |
+        (
+          sum(male_active_policies_total) - 
+          sum(male_values_current{metric_type="accuracy"} > 0)
+        ) > 0
+      for: 5m
+      labels:
+        severity: warning
+        component: male-controller
+      annotations:
+        summary: "Some workloads are not receiving MALE policies"
+        description: "{{ $value }} workloads are not properly configured with MALE policies"
+
+  - name: male-controller.recording
+    rules:
+    # Policy Success Rate
+    - record: male_policy_success_rate
+      expr: |
+        sum(rate(male_policy_applications_total{status="success"}[5m])) 
+        / 
+        sum(rate(male_policy_applications_total[5m]))
+    
+    # Average MALE Values by Cluster
+    - record: male_values_avg_by_cluster
+      expr: |
+        avg(male_values_current) by (cluster, metric_type)
+    
+    # Policy Application Rate
+    - record: male_policy_application_rate
+      expr: |
+        sum(rate(male_policy_applications_total[5m])) by (namespace, policy_name)
+    
+    # Controller Uptime
+    - record: male_controller_uptime
+      expr: |
+        time() - process_start_time_seconds{job="male-controller-metrics"}

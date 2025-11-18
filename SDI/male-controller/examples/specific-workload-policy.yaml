@@ -1,0 +1,77 @@
+# 1. 특정 워크로드 직접 지정 방식
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: high-performance-inference-policy
+spec:
+  accuracy: 950
+  latency: 50    # 매우 낮은 지연시간 요구
+  energy: 400    # 고성능을 위해 전력 효율성 다소 타협
+  targetWorkloads:
+  - name: ml-inference-service
+    namespace: default
+    kind: Deployment
+  - name: critical-ai-model
+    namespace: production
+    kind: Deployment
+  description: "Critical ML inference services with high performance requirements"
+---
+# 2. 라벨 기반 + 네임스페이스 제한
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: dev-ml-policy
+spec:
+  accuracy: 600
+  latency: 300
+  energy: 800    # 개발환경에서는 전력 효율성 우선
+  selector:
+    type: "machine-learning"
+    environment: "development"
+  targetNamespaces:
+  - "dev-ml"
+  - "staging-ml"
+  description: "Development ML workloads with energy efficiency focus"
+---
+# 3. 프로덕션 고성능 정책
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: production-ml-policy
+spec:
+  accuracy: 900
+  latency: 100
+  energy: 500
+  selector:
+    type: "machine-learning"
+    environment: "production"
+    tier: "critical"
+  targetNamespaces:
+  - "production"
+  description: "Production critical ML services"
+---
+# 4. 배치 처리 정책 (정확도 우선)
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: batch-processing-policy
+spec:
+  accuracy: 1000  # 최고 정확도
+  latency: 800    # 지연시간 덜 중요
+  energy: 900     # 전력 효율성 중요
+  selector:
+    type: "batch-processing"
+    workload: "training"
+  description: "ML model training and batch processing jobs"
+---
+# 5. 글로벌 기본 정책
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: global-default-policy
+spec:
+  accuracy: 700
+  latency: 500
+  energy: 700
+  globalDefault: true
+  description: "Default MALE policy for all workloads without specific policies"

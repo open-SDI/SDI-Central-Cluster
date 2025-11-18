@@ -1,0 +1,134 @@
+# Multi-cluster ML 워크로드 배포 테스트
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: distributed-ml-inference
+  labels:
+    app: ml-inference
+    type: machine-learning
+    multi-cluster: "true"
+spec:
+  replicas: 6  # Karmada가 클러스터별로 분산 배포
+  selector:
+    matchLabels:
+      app: ml-inference
+  template:
+    metadata:
+      labels:
+        app: ml-inference
+        type: machine-learning
+    spec:
+      containers:
+      - name: ml-service
+        image: tensorflow/serving:latest
+        ports:
+        - containerPort: 8501
+        env:
+        - name: MODEL_NAME
+          value: "distributed-model"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+---
+# 글로벌 MALE 정책 (모든 클러스터 기본값)
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: global-ml-policy
+spec:
+  accuracy: 800
+  latency: 200
+  energy: 600
+  selector:
+    type: "machine-learning"
+    multi-cluster: "true"
+  globalDefault: false
+  description: "Global MALE policy for multi-cluster ML workloads"
+---
+# Karmada PropagationPolicy - 스마트 클러스터 분산
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: smart-ml-distribution
+spec:
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: distributed-ml-inference
+  placement:
+    clusterAffinity:
+      clusterNames:
+      - edge-cluster-1    # 2 replicas - 에지 컴퓨팅
+      - gpu-cluster-1     # 2 replicas - 고성능 추론
+      - cpu-cluster-1     # 2 replicas - 일반 처리
+    replicaScheduling:
+      replicaDivisionPreference: Weighted
+      replicaSchedulingType: Divided
+      weightPreference:
+        staticWeightList:
+        - targetCluster:
+            clusterNames:
+            - edge-cluster-1
+          weight: 1
+        - targetCluster:
+            clusterNames: 
+            - gpu-cluster-1
+          weight: 2
+        - targetCluster:
+            clusterNames:
+            - cpu-cluster-1  
+          weight: 3
+---
+# 테스트용 Karmada Work 리소스 (실제로는 Karmada가 자동 생성)
+apiVersion: work.karmada.io/v1alpha1
+kind: Work
+metadata:
+  name: distributed-ml-inference-edge-cluster-1
+  namespace: karmada-es-edge-cluster-1
+spec:
+  workload:
+    manifests:
+    - apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: distributed-ml-inference
+        labels:
+          app: ml-inference
+          type: machine-learning
+          multi-cluster: "true"
+          deployment-target: "edge"    # Karmada 오버라이드로 추가
+          cluster-type: "edge"         # Karmada 오버라이드로 추가
+      spec:
+        replicas: 2
+        selector:
+          matchLabels:
+            app: ml-inference
+        template:
+          metadata:
+            labels:
+              app: ml-inference
+              type: machine-learning
+          spec:
+            containers:
+            - name: ml-service
+              image: tensorflow/serving:latest
+              ports:
+              - containerPort: 8501
+              env:
+              - name: MODEL_NAME
+                value: "distributed-model"
+              # MALE Controller가 자동으로 추가할 환경변수:
+              # - name: MALE_ACCURACY
+              #   value: "750"  # edge 클러스터 조정값
+              # - name: MALE_LATENCY  
+              #   value: "300"  # edge 클러스터 조정값
+              # - name: MALE_ENERGY
+              #   value: "800"  # edge 클러스터 조정값
+              resources:
+                requests:
+                  memory: "256Mi"  # Edge 클러스터 제한
+                  cpu: "200m"
+                limits:
+                  memory: "512Mi"
+                  cpu: "500m"

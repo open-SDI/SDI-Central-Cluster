@@ -1,0 +1,17 @@
+# member-values.yaml
+
+# Prometheus 관련 설정
+prometheus:
+  prometheusSpec:
+    # 이 레이블은 호스트 클러스터에서 데이터를 조회할 때
+    # 어떤 멤버 클러스터의 메트릭인지 구분하는 데 사용됩니다. (매우 중요)
+    externalLabels:
+      cluster: edge-cluster
+
+
+# 아래 컴포넌트는 멤버 클러스터에 설치할 필요가 없으므로 비활성화합니다.
+grafana:
+  enabled: false
+
+alertmanager:
+  enabled: false

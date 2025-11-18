@@ -1,0 +1,19 @@
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  labels:
+    app.kubernetes.io/name: male-controller
+    app.kubernetes.io/managed-by: kustomize
+  name: malepolicy-sample
+  namespace: male-controller-system
+spec:
+  accuracy: 800
+  latency: 200
+  energy: 600
+  selector:
+    app: "demo"
+  targetNamespaces:
+  - "sdi-demo"
+  description: "High accuracy, low latency ML policy for SDI demo workloads"
+  globalDefault: false
+  preemptionPolicy: "Never"

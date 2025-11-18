@@ -1,0 +1,20 @@
+# member-federation-export.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-federate
+  namespace: monitor
+spec:
+  selector:
+    # kube-prometheus-stack으로 설치된 Prometheus Pod을 선택합니다.
+    app.kubernetes.io/name: prometheus
+  ports:
+    - name: web
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: multicluster.x-karmada.io/v1alpha1
+kind: ServiceExport
+metadata:
+  name: prometheus-federate
+  namespace: monitor

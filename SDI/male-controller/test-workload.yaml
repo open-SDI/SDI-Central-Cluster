@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-inference-service
+  namespace: default
+  labels:
+    app: ml-inference
+    type: machine-learning
+    environment: test
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ml-inference
+  template:
+    metadata:
+      labels:
+        app: ml-inference
+        type: machine-learning
+    spec:
+      containers:
+      - name: inference-container
+        image: nginx:latest  # 테스트용 이미지
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SERVICE_TYPE
+          value: "ml-inference"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: regular-web-service
+  namespace: default
+  labels:
+    app: web-service
+    type: web-application
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web-service
+  template:
+    metadata:
+      labels:
+        app: web-service
+    spec:
+      containers:
+      - name: web-container
+        image: nginx:latest
+        ports:
+        - containerPort: 80

@@ -1,0 +1,182 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitor
+data:
+  prometheus.yml: |-
+    global:
+      scrape_interval:     15s 
+      evaluation_interval: 15s
+    scrape_configs:
+    - job_name: 'karmada-scheduler'
+      kubernetes_sd_configs:
+      - role: pod
+      scheme: http
+      tls_config:
+        insecure_skip_verify: true
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_label_app]
+        action: keep
+        regex: karmada-system;karmada-scheduler
+      - target_label: __address__
+        source_labels: [__address__]
+        regex: '(.*)'
+        replacement: '${1}:10351'
+        action: replace 
+    - job_name: 'karmada-controller-manager'
+      kubernetes_sd_configs:
+      - role: pod
+      scheme: http
+      tls_config:
+        insecure_skip_verify: true
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_label_app]
+        action: keep
+        regex: karmada-system;karmada-controller-manager
+      - target_label: __address__
+        source_labels: [__address__]
+        regex: '(.*)'
+        replacement: '${1}:8080'
+        action: replace                
+    - job_name: 'kubernetes-apiserver'
+      kubernetes_sd_configs:
+      - role: endpoints
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+        action: keep
+        regex: default;kubernetes;https
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+    - job_name: 'karmada-apiserver'
+      kubernetes_sd_configs:
+      - role: endpoints
+      scheme: https
+      tls_config:
+        insecure_skip_verify: true
+      bearer_token: eyJhbGciOiJSUzI1NiIsImtpZCI6IjVsbzMzVVE5U3VRRDFTaE1IZnVmT1MxLUc4M29rVVRNTVF1UjFXTlFsakEifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJtb25pdG9yIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6InByb21ldGhldXMiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoicHJvbWV0aGV1cyIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6Ijg3YThhM2E3LTk5NGItNDZiYi1iMjg1LWM5MmVmODRjOTYzOCIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDptb25pdG9yOnByb21ldGhldXMifQ.P0hzbxlGmtWqJyjQJKqiue1Yk1RMOcN_IjAqHsYBYtYXuyU3N1ZM5g3ay-3o7xybNdVIqoVu8k0V7L-zwX06__rrwoilF9nRlfdqiEb30y1r7MLE_ERZxt-v5tapqKDiO9UMaSWuWtUO6719NVphqIUI2qCbvf28mJE0G_3sJWP2-FpdXRk2DpJaKRvl7JLzuvgE1V_Q-ITdO1syIRb3L4EOkwFZtiRyUlPnQ7_P84NqFZlJ96kNaVFrPZkSVqqpCFxm56DZdq3HjueXCOHsmVbafA-seP6g3VjKZlFYXzSaZXkVgzTEPxfzlfzBXfID6bD60213SmwMkTm5RtjeB9ZnnMXc1DCOdRTPAeF3lv72l9gmM_wKuKcZ8B0zh9bsvcx4AllkhI7AGs1snwXwf-zTV-rJ5hMOx0090RI6UqOkgt9HfLl_qEFty8Q3jUxYeL_ncWuoPkFvfPB89NKGyMAa_kjIWkT8GJCHhTb9vKGsX_2bthumNlxJZl9_Q4lL
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: karmada-apiserver
+      - target_label: __address__
+        replacement: karmada-apiserver.karmada-system.svc:5443
+    - job_name: 'karmada-aggregated-apiserver'
+      kubernetes_sd_configs:
+      - role: endpoints
+      scheme: https
+      tls_config:
+        insecure_skip_verify: true
+      bearer_token: eyJhbGciOiJSUzI1NiIsImtpZCI6IjVsbzMzVVE5U3VRRDFTaE1IZnVmT1MxLUc4M29rVVRNTVF1UjFXTlFsakEifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJtb25pdG9yIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZWNyZXQubmFtZSI6InByb21ldGhldXMiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoicHJvbWV0aGV1cyIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50LnVpZCI6Ijg3YThhM2E3LTk5NGItNDZiYi1iMjg1LWM5MmVmODRjOTYzOCIsInN1YiI6InN5c3RlbTpzZXJ2aWNlYWNjb3VudDptb25pdG9yOnByb21ldGhldXMifQ.P0hzbxlGmtWqJyjQJKqiue1Yk1RMOcN_IjAqHsYBYtYXuyU3N1ZM5g3ay-3o7xybNdVIqoVu8k0V7L-zwX06__rrwoilF9nRlfdqiEb30y1r7MLE_ERZxt-v5tapqKDiO9UMaSWuWtUO6719NVphqIUI2qCbvf28mJE0G_3sJWP2-FpdXRk2DpJaKRvl7JLzuvgE1V_Q-ITdO1syIRb3L4EOkwFZtiRyUlPnQ7_P84NqFZlJ96kNaVFrPZkSVqqpCFxm56DZdq3HjueXCOHsmVbafA-seP6g3VjKZlFYXzSaZXkVgzTEPxfzlfzBXfID6bD60213SmwMkTm5RtjeB9ZnnMXc1DCOdRTPAeF3lv72l9gmM_wKuKcZ8B0zh9bsvcx4AllkhI7AGs1snwXwf-zTV-rJ5hMOx0090RI6UqOkgt9HfLl_qEFty8Q3jUxYeL_ncWuoPkFvfPB89NKGyMAa_kjIWkT8GJCHhTb9vKGsX_2bthumNlxJZl9_Q4lL
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoints_name]
+        action: keep
+        regex: karmada-system;karmada-aggregated-apiserver;karmada-aggregated-apiserver
+      - target_label: __address__
+        replacement: karmada-aggregated-apiserver.karmada-system.svc:443
+    - job_name: 'kubernetes-cadvisor'
+      scheme: https
+      tls_config:
+        ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+      bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+      kubernetes_sd_configs:
+      - role: node
+      relabel_configs:
+      - target_label: __address__
+        replacement: kubernetes.default.svc:443
+      - source_labels: [__meta_kubernetes_node_name]
+        regex: (.+)
+        target_label: __metrics_path__
+        replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+      metric_relabel_configs:
+      - action: replace
+        source_labels: [id]
+        regex: '^/machine\.slice/machine-rkt\\x2d([^\\]+)\\.+/([^/]+)\.service$'
+        target_label: rkt_container_name
+        replacement: '${2}-${1}'
+      - action: replace
+        source_labels: [id]
+        regex: '^/system\.slice/(.+)\.service$'
+        target_label: systemd_service_name
+        replacement: '${1}'
+      - source_labels: [pod]
+        separator: ;
+        regex: (.+)
+        target_label: pod_name
+        replacement: $1
+        action: replace
+---
+apiVersion: v1
+kind: "Service"
+metadata:
+  name: prometheus
+  namespace: monitor
+  labels:
+    name: prometheus
+spec:
+  ports:
+  - name: prometheus
+    protocol: TCP
+    port: 9090
+    targetPort: 9090
+    nodePort: 31801 
+  selector:
+    app: prometheus
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    name: prometheus
+  name: prometheus
+  namespace: monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+      - name: prometheus
+        image: prom/prometheus:latest
+        command:
+        - "/bin/prometheus"
+        args:
+        - "--config.file=/etc/prometheus/prometheus.yml"
+        - "--storage.tsdb.path=/prom-data"
+        - "--storage.tsdb.retention.time=180d"
+        ports:
+        - containerPort: 9090
+          protocol: TCP
+        volumeMounts:
+        - mountPath: "/etc/prometheus"
+          name: prometheus-config
+        - mountPath: "/prom-data"
+          name: prom-data
+      initContainers:
+      - name: prometheus-data-permission-fix
+        image: busybox
+        command: ["/bin/chmod","-R","777", "/data"]
+        volumeMounts:
+        - name: prom-data
+          mountPath: /data
+      volumes:
+      - name: prometheus-config
+        configMap:
+          name: prometheus-config
+      - name: prom-data
+        hostPath:
+          path: /var/lib/prom-data
+          type: DirectoryOrCreate

@@ -1,0 +1,130 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: male-policy-interpreter
+spec:
+  target:
+    apiVersion: apps/v1
+    kind: Deployment
+  customizations:
+    # MALE 정책 기반으로 Deployment를 수정하는 Lua 스크립트
+    resourceInterpreterCustomizations:
+    - op: Interpret
+      luaScript: |
+        function Interpret(desiredObj)
+          -- MALE 어노테이션이 있는지 확인
+          local maleAccuracy = desiredObj.metadata.annotations and desiredObj.metadata.annotations["male-policy.opensdi.io/accuracy"]
+          local maleLatency = desiredObj.metadata.annotations and desiredObj.metadata.annotations["male-policy.opensdi.io/latency"] 
+          local maleEnergy = desiredObj.metadata.annotations and desiredObj.metadata.annotations["male-policy.opensdi.io/energy"]
+          
+          if maleAccuracy and maleLatency and maleEnergy then
+            -- Pod template의 모든 컨테이너에 MALE 환경변수 추가
+            local containers = desiredObj.spec.template.spec.containers
+            for i, container in ipairs(containers) do
+              if not container.env then
+                container.env = {}
+              end
+              
+              -- 기존 MALE 환경변수 제거
+              local newEnv = {}
+              for _, env in ipairs(container.env) do
+                if env.name ~= "MALE_ACCURACY" and env.name ~= "MALE_LATENCY" and env.name ~= "MALE_ENERGY" then
+                  table.insert(newEnv, env)
+                end
+              end
+              
+              -- 새로운 MALE 환경변수 추가
+              table.insert(newEnv, {name = "MALE_ACCURACY", value = maleAccuracy})
+              table.insert(newEnv, {name = "MALE_LATENCY", value = maleLatency})
+              table.insert(newEnv, {name = "MALE_ENERGY", value = maleEnergy})
+              
+              container.env = newEnv
+            end
+            
+            -- 멤버 클러스터별 MALE 정책 조정 (예: 클러스터 리소스에 따른 자동 조정)
+            local clusterName = obj.status and obj.status.clusterName
+            if clusterName then
+              if clusterName == "edge-cluster" then
+                -- Edge 클러스터에서는 전력 효율성 우선
+                for i, container in ipairs(containers) do
+                  for j, env in ipairs(container.env) do
+                    if env.name == "MALE_ENERGY" then
+                      env.value = tostring(math.min(1000, tonumber(env.value) + 200))
+                    elseif env.name == "MALE_ACCURACY" then
+                      env.value = tostring(math.max(0, tonumber(env.value) - 100))
+                    end
+                  end
+                end
+              elseif clusterName == "gpu-cluster" then
+                -- GPU 클러스터에서는 성능 우선
+                for i, container in ipairs(containers) do
+                  for j, env in ipairs(container.env) do
+                    if env.name == "MALE_ACCURACY" then
+                      env.value = tostring(math.min(1000, tonumber(env.value) + 100))
+                    elseif env.name == "MALE_LATENCY" then
+                      env.value = tostring(math.max(0, tonumber(env.value) - 50))
+                    end
+                  end
+                end
+              end
+            end
+          end
+          
+          return desiredObj
+        end
+---
+# PropagationPolicy를 통한 MALE 정책 전파
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: male-policy-propagation
+spec:
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    labelSelector:
+      matchLabels:
+        type: machine-learning
+  placement:
+    clusterAffinity:
+      clusterNames:
+      - member1
+      - member2
+      - edge-cluster
+      - gpu-cluster
+    spreadConstraints:
+    - spreadByField: cluster
+      maxGroups: 4
+  # 클러스터별 정책 오버라이드
+  overridePolicy: male-cluster-override
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterOverridePolicy
+metadata:
+  name: male-cluster-override
+spec:
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    labelSelector:
+      matchLabels:
+        type: machine-learning
+  targetCluster:
+    clusterNames:
+    - edge-cluster
+  overriders:
+    annotationsOverrider:
+    - operator: add
+      value:
+        male-policy.opensdi.io/cluster-type: "edge"
+        male-policy.opensdi.io/optimized-for: "energy-efficiency"
+  ---
+  targetCluster:
+    clusterNames:
+    - gpu-cluster
+  overriders:
+    annotationsOverrider:
+    - operator: add
+      value:
+        male-policy.opensdi.io/cluster-type: "gpu"
+        male-policy.opensdi.io/optimized-for: "high-performance"

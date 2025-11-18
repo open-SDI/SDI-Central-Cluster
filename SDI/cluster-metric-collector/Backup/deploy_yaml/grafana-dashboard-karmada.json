@@ -1,0 +1,59 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "graphTooltip": 0,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Scheduling Attempts (5m)",
+      "targets": [
+        {
+          "expr": "sum(increase(karmada_scheduler_scheduling_attempts_total[5m]))",
+          "refId": "A"
+        }
+      ],
+      "id": 1
+    },
+    {
+      "type": "timeSeries",
+      "title": "Clusters Ready (karmada)",
+      "targets": [
+        {
+          "expr": "sum(karmada_clusters_status_condition{condition=\"Ready\"})",
+          "refId": "A"
+        }
+      ],
+      "id": 2
+    },
+    {
+      "type": "timeSeries",
+      "title": "Controller Workqueue Depth",
+      "targets": [
+        {
+          "expr": "sum by (name) (workqueue_depth{job=~\"karmada-components\"})",
+          "refId": "A"
+        }
+      ],
+      "id": 3
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": [
+    "karmada",
+    "sdi"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timezone": "browser",
+  "title": "Karmada Overview",
+  "version": 1
+}

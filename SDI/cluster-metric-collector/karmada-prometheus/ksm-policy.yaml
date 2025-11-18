@@ -1,0 +1,37 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: ksm-propagation
+  namespace: monitor
+spec:
+  resourceSelectors:
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: kube-state-metrics
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: kube-state-metrics
+    - apiVersion: v1
+      kind: Service
+      name: kube-state-metrics
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - edge-cluster
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterPropagationPolicy
+metadata:
+  name: ksm-rbac-propagation
+spec:
+  resourceSelectors:
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      name: kube-state-metrics
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      name: kube-state-metrics
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - edge-cluster

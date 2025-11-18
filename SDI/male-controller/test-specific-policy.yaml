@@ -1,0 +1,16 @@
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: specific-workload-policy
+spec:
+  accuracy: 900
+  latency: 80
+  energy: 400
+  targetWorkloads:
+  - name: critical-ai-model
+    namespace: default
+    kind: Deployment
+  - name: ml-inference-service
+    namespace: default
+    kind: Deployment
+  description: "Policy targeting specific critical workloads by name"

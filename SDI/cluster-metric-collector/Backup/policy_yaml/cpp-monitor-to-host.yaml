@@ -1,0 +1,21 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterPropagationPolicy
+metadata:
+  name: monitor-namespace-and-cluster-resources-to-host
+spec:
+  # 충돌 시 기존 리소스를 Karmada가 덮어쓰기
+  conflictResolution: Overwrite
+  resourceSelectors:
+  - apiVersion: v1
+    kind: Namespace
+    name: monitor
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    name: prometheus
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    name: prometheus
+  placement:
+    clusterAffinity:
+      clusterNames:
+      - host

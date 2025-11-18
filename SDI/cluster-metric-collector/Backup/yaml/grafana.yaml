@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: monitor
+data:
+  prometheus.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prom-central.${NS}.svc:9090
+        isDefault: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: grafana }
+  template:
+    metadata:
+      labels: { app: grafana }
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.4.5
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              value: admin
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: admin
+          volumeMounts:
+            - name: ds
+              mountPath: /etc/grafana/provisioning/datasources
+      volumes:
+        - name: ds
+          configMap:
+            name: grafana-datasources
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: ${NS}
+spec:
+  type: NodePort
+  ports:
+    - name: web
+      port: 3000
+      targetPort: 3000
+      nodePort: 30030
+  selector:
+    app: grafana
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: grafana-to-host
+  namespace: ${NS}
+spec:
+  resourceSelectors:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: grafana-datasources
+      namespace: ${NS}
+    - apiVersion: v1
+      kind: Service
+      name: grafana
+      namespace: ${NS}
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: grafana
+      namespace: ${NS}
+  placement:
+    clusterAffinity:
+      clusterNames: ["${HOST_CLUSTER_NAME}"]
+

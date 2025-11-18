@@ -1,0 +1,43 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: monitor-workloads-to-host
+  namespace: monitor
+spec:
+  # 충돌 시 기존 리소스를 덮어쓰기
+  conflictResolution: Overwrite
+  resourceSelectors:
+  - apiVersion: v1
+    kind: ServiceAccount
+    name: prometheus
+  - apiVersion: v1
+    kind: ConfigMap
+    name: prom-config
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: prometheus
+  - apiVersion: v1
+    kind: Service
+    name: prometheus
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    name: grafana-pvc
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: grafana
+  - apiVersion: v1
+    kind: Service
+    name: grafana
+  - apiVersion: v1
+    kind: ConfigMap
+    name: grafana-datasources
+  - apiVersion: v1
+    kind: ConfigMap
+    name: grafana-dashboards
+  - apiVersion: v1
+    kind: ConfigMap
+    name: grafana-dashboard-providers
+  placement:
+    clusterAffinity:
+      clusterNames:
+      - host

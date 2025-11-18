@@ -1,0 +1,48 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: prometheus-propagation
+  namespace: monitor
+spec:
+  resourceSelectors:
+    - apiVersion: v1
+      kind: Namespace
+      name: monitor
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: prometheus
+      namespace: monitor
+    - apiVersion: v1
+      kind: ConfigMap
+      name: prometheus-config
+      namespace: monitor
+    - apiVersion: v1
+      kind: Service
+      name: prometheus
+      namespace: monitor
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: prometheus
+      namespace: monitor
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - edge-cluster
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterPropagationPolicy
+metadata:
+  name: prometheusrbac-propagation
+spec:
+  resourceSelectors:
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      name: prometheus
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      name: prometheus
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - edge-cluster
+

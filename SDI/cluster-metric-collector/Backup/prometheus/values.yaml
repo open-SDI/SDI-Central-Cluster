@@ -1,0 +1,47 @@
+prometheus:
+  prometheusSpec:
+    # Karmada 클러스터의 서비스 디스커버리 설정
+    serviceDiscovery:
+      enabled: true
+    # 추가적인 Scrape 설정
+    additionalScrapeConfigs:
+      # 멤버 클러스터의 API 서버 메트릭 수집 설정
+      - job_name: 'member-apiserver'
+        kubernetes_sd_configs:
+          - role: service
+            kubeconfig_file: /etc/kubeconfig/kubeconfig # Karmada의 kubeconfig 경로
+            namespaces:
+              names:
+                - karmada-cluster # Karmada의 Cluster 객체가 있는 네임스페이스
+        relabel_configs:
+          # Cluster 객체에서 클러스터 이름을 가져옴
+          - source_labels: [__meta_kubernetes_service_label_cluster_karmada_io_name]
+            action: keep
+            regex: (.+)
+          - source_labels: [__meta_kubernetes_service_label_cluster_karmada_io_name]
+            target_label: cluster
+          # API 서버의 주소와 포트를 설정
+          - source_labels: [__meta_kubernetes_service_address, __meta_kubernetes_service_port_https]
+            action: replace
+            target_label: __address__
+            replacement: $1:$2
+          # 인증서 관련 설정 (Karmada가 생성한 시크릿 사용)
+          - source_labels: [__meta_kubernetes_service_label_cluster_karmada_io_name]
+            action: replace
+            target_label: __scheme__
+            replacement: https
+          - source_labels: [__meta_kubernetes_service_label_cluster_karmada_io_name]
+            action: replace
+            target_label: __metrics_path__
+            replacement: /metrics
+          - source_labels: [__meta_kubernetes_service_label_cluster_karmada_io_name]
+            action: replace
+            target_label: ca_file
+            replacement: /etc/kubeconfig/clusters/$1/ca.crt
+          - source_labels: [__meta_kubernetes_service_label_cluster_karmada_io_name]
+            action: replace
+            target_label: bearer_token_file
+            replacement: /etc/kubeconfig/clusters/$1/token
+
+# Karmada kubeconfig를 Prometheus 파드에 마운트하기 위한 설정
+kubeEtcHostPath: /etc/karmada/

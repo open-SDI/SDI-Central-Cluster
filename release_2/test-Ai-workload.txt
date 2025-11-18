@@ -1,0 +1,9 @@
+# 파드 포트포워딩
+kubectl -n ai port-forward svc/llm-cpu-svc 11434:11434
+
+# llama 파드 동작 테스트
+curl -s http://127.0.0.1:11434/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{"model":"tinyllama","prompt":"Say hello in one short sentence."}'
+
+
