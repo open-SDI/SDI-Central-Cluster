@@ -1,0 +1,17 @@
+실행 순서
+# (선택) 기존 리소스 싹 정리
+./delete-all.sh    # 문제 없이 재배포하려면 권장 :contentReference[oaicite:5]{index=5}
+
+# 필요 시 환경변수 지정
+export MEMBER_CLUSTER_NAME=k3s-cluster HOST_CLUSTER_NAME=host NS=monitor
+
+# 재배포
+./apply-all.sh     # yaml → .build 로 렌더링 후 순서대로 적용됨 :contentReference[oaicite:6]{index=6}
+
+배포 후 빠른 헬스체크
+# 멤버 에이전트 ready(스크립트가 마지막에 자동 체크도 함)
+kkc get --raw "/apis/cluster.karmada.io/v1alpha1/clusters/${MEMBER_CLUSTER_NAME}/proxy/api/v1/namespaces/${NS}/services/prom-agent:9090/proxy/-/ready" >/dev/null && echo OK
+
+# 중앙 Prometheus 서비스 확인 (host 클러스터 NodePort 30090로 노출됨)
+kkc -n ${NS} get svc prom-central -o wide        # 30090 확인
+# 브라우저: http://<host 노드 IP>:30090  (README 안내와 동일) :contentReference[oaicite:7]{index=7}

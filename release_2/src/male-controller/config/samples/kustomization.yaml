@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- opensdi_v1alpha1_malepolicy.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

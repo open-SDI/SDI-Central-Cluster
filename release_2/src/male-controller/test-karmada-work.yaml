@@ -1,0 +1,45 @@
+apiVersion: work.karmada.io/v1alpha1
+kind: Work
+metadata:
+  name: test-ml-work
+  namespace: karmada-es-test-cluster
+  labels:
+    work.karmada.io/name: test-deployment
+    work.karmada.io/namespace: default
+spec:
+  workload:
+    manifests:
+    - apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: test-ml-inference
+        namespace: default
+        labels:
+          app: test-ml
+          type: machine-learning
+      spec:
+        replicas: 2
+        selector:
+          matchLabels:
+            app: test-ml
+        template:
+          metadata:
+            labels:
+              app: test-ml
+              type: machine-learning
+          spec:
+            containers:
+            - name: ml-container
+              image: nginx:latest
+              ports:
+              - containerPort: 8080
+              env:
+              - name: SERVICE_TYPE
+                value: ml-test
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi

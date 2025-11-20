@@ -1,0 +1,26 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: prom-central-to-host
+  namespace: monitor
+spec:
+  resourceSelectors:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: prom-central-config
+      namespace: monitor
+    - apiVersion: v1
+      kind: Secret
+      name: karmada-access-token
+      namespace: monitor
+    - apiVersion: v1
+      kind: Service
+      name: prom-central
+      namespace: monitor
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: prom-central
+      namespace: monitor
+  placement:
+    clusterAffinity:
+      clusterNames: ["${HOST_CLUSTER_NAME}"]

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitor
+---
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: ns-monitor-to-all
+  namespace: monitor
+spec:
+  resourceSelectors:
+    - apiVersion: v1
+      kind: Namespace
+      name: monitor
+  placement:
+    clusterAffinity:
+      clusterNames:
+        - host
+        - k3s-cluster

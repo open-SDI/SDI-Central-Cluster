@@ -1,0 +1,32 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: prom-agent-to-members
+  namespace: monitor
+spec:
+  resourceSelectors:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: prom-agent-config
+      namespace: monitor
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: prometheus
+      namespace: monitor
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRole
+      name: prometheus
+    - apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      name: prometheus
+    - apiVersion: v1
+      kind: Service
+      name: prom-agent
+      namespace: monitor
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: prom-agent
+      namespace: monitor
+  placement:
+    clusterAffinity:
+      clusterNames: ["k3s-cluster"]

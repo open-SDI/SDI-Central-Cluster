@@ -1,0 +1,98 @@
+# 실제 edge-cluster에 MALE 정책을 적용하는 테스트
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: real-edge-cluster-policy
+spec:
+  accuracy: 800
+  latency: 200
+  energy: 600
+  selector:
+    app: "test-ml-workload"
+  description: "Policy for real edge-cluster (40 CPU, 128GB, K3s)"
+---
+# 실제 edge-cluster에 배포할 ML 워크로드
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-ml-inference
+  labels:
+    app: test-ml-workload
+    type: machine-learning
+    target: edge-cluster
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: test-ml-workload
+  template:
+    metadata:
+      labels:
+        app: test-ml-workload
+        type: machine-learning
+    spec:
+      containers:
+      - name: ml-service
+        image: nginx:latest  # 테스트용
+        ports:
+        - containerPort: 8080
+        env:
+        - name: CLUSTER_TARGET
+          value: "edge-cluster"
+        - name: MODEL_TYPE
+          value: "lightweight"
+        resources:
+          requests:
+            cpu: "200m"      # Edge 환경 고려한 낮은 요청
+            memory: "256Mi"
+          limits:
+            cpu: "1000m"     # 실제로는 40코어 중 일부만 사용
+            memory: "1Gi"
+---
+# Karmada PropagationPolicy - 실제 edge-cluster로 전파
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: edge-ml-propagation
+spec:
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: edge-ml-inference
+  placement:
+    clusterAffinity:
+      clusterNames:
+      - edge-cluster  # 실제 연동된 클러스터 이름 사용
+---
+# 실제 클러스터 특성을 반영한 ClusterOverridePolicy
+apiVersion: policy.karmada.io/v1alpha1
+kind: ClusterOverridePolicy
+metadata:
+  name: real-edge-optimizations
+spec:
+  resourceSelectors:
+  - apiVersion: apps/v1
+    kind: Deployment
+    labelSelector:
+      matchLabels:
+        app: test-ml-workload
+  targetCluster:
+    clusterNames:
+    - edge-cluster
+  overriders:
+    # 실제 edge-cluster 특성 라벨 추가
+    labelsOverrider:
+    - operator: add
+      value:
+        cluster.karmada.io/type: "edge"
+        cluster.karmada.io/k8s-distro: "k3s" 
+        cluster.karmada.io/cpu-cores: "40"
+        cluster.karmada.io/memory-gb: "128"
+        male-policy.opensdi.io/detected-type: "high-resource-edge"
+    # Edge 최적화 어노테이션 추가
+    annotationsOverrider:
+    - operator: add
+      value:
+        male-policy.opensdi.io/cluster-profile: "edge-high-spec"
+        male-policy.opensdi.io/optimization-strategy: "cpu-efficient"
+        male-policy.opensdi.io/target-cluster: "edge-cluster"

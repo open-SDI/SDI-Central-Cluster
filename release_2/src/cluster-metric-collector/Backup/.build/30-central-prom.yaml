@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prom-central-config
+  namespace: monitor
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    scrape_configs:
+    - job_name: 'prom-central'
+      static_configs:
+      - targets: ['localhost:9090']
+
+    - job_name: 'federation-k3s-cluster'
+      honor_labels: true
+      scheme: https
+      metrics_path: /federate
+      params:
+        'match[]':
+          - '{__name__=~".+"}'
+      static_configs:
+      - targets:
+        - karmada-apiserver.karmada-system.svc:5443/apis/cluster.karmada.io/v1alpha1/clusters/k3s-cluster/proxy/api/v1/namespaces/monitor/services/prom-agent:9090/proxy
+      tls_config:
+        insecure_skip_verify: true
+      bearer_token_file: /etc/karmada/token/token
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prom-central
+  namespace: monitor
+spec:
+  type: NodePort
+  ports:
+  - name: web
+    port: 9090
+    targetPort: 9090
+    nodePort: 30090
+  selector:
+    app: prom-central
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prom-central
+  namespace: monitor
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: prom-central }
+  template:
+    metadata:
+      labels: { app: prom-central }
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus
+        args:
+        - "--config.file=/etc/prometheus/prometheus.yml"
+        - "--web.enable-lifecycle"
+        - "--storage.tsdb.path=/home/prometheus"
+        - "--storage.tsdb.retention.time=168h"
+        ports:
+        - containerPort: 9090
+        volumeMounts:
+        - name: data
+          mountPath: /home/prometheus
+        - name: config
+          mountPath: /etc/prometheus
+        - name: karmada-token
+          mountPath: /etc/karmada/token
+          readOnly: true
+      volumes:
+      - name: data
+        emptyDir: {}
+      - name: config
+        configMap:
+          name: prom-central-config
+      - name: karmada-token
+        secret:
+          secretName: karmada-access-token

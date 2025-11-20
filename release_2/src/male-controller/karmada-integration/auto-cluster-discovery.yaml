@@ -1,0 +1,195 @@
+# 실제 클러스터 자동 인식을 위한 설정 예시
+# 1. GPU 클러스터 예시 (Karmada Cluster 리소스)
+apiVersion: cluster.karmada.io/v1alpha1
+kind: Cluster
+metadata:
+  name: gpu-cluster-01
+  labels:
+    # 하드웨어 특성 라벨 (클러스터 관리자가 수동 설정 또는 자동 수집)
+    hardware.karmada.io/gpu-count: "4"
+    hardware.karmada.io/gpu-type: "nvidia-tesla-v100"
+    hardware.karmada.io/power-profile: "high-performance"
+    topology.karmada.io/location: "datacenter"
+    network.karmada.io/type: "ethernet"
+    # MALE Controller가 자동 분류한 결과
+    male-policy.opensdi.io/cluster-type: "gpu"
+spec:
+  syncMode: Push
+  apiEndpoint: https://gpu-cluster-01-api:6443
+  secretRef:
+    name: gpu-cluster-01-secret
+    namespace: karmada-cluster
+status:
+  # Karmada가 수집한 실제 클러스터 리소스 정보
+  nodeSummary:
+    totalCPU: "32"        # 32 CPU 코어
+    totalMemory: "137438953472"  # 128GB 메모리 (bytes)
+    readyNodes: 4
+    totalNodes: 4
+  conditions:
+  - type: Ready
+    status: "True"
+  kubernetesVersion: v1.28.0
+---
+# 2. Edge 클러스터 예시
+apiVersion: cluster.karmada.io/v1alpha1
+kind: Cluster
+metadata:
+  name: edge-cluster-02
+  labels:
+    hardware.karmada.io/power-profile: "low-power"
+    topology.karmada.io/location: "edge"
+    network.karmada.io/type: "5g"
+    device.karmada.io/type: "raspberry-pi"
+    male-policy.opensdi.io/cluster-type: "edge"
+spec:
+  syncMode: Push
+  apiEndpoint: https://edge-cluster-02-api:6443
+  secretRef:
+    name: edge-cluster-02-secret
+    namespace: karmada-cluster
+status:
+  nodeSummary:
+    totalCPU: "4"         # 4 CPU 코어 (ARM)
+    totalMemory: "8589934592"   # 8GB 메모리
+    readyNodes: 2
+    totalNodes: 2
+  conditions:
+  - type: Ready
+    status: "True"
+  kubernetesVersion: v1.28.0
+---
+# 3. 클러스터 자동 분류를 위한 RBAC 설정
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: male-controller-cluster-reader
+rules:
+- apiGroups: ["cluster.karmada.io"]
+  resources: ["clusters"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["work.karmada.io"]
+  resources: ["works"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: male-controller-cluster-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: male-controller-cluster-reader
+subjects:
+- kind: ServiceAccount
+  name: male-controller-controller-manager
+  namespace: male-controller-system
+---
+# 4. 클러스터 정보 자동 수집을 위한 DaemonSet (각 멤버 클러스터에서 실행)
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: cluster-info-collector
+  namespace: karmada-system
+spec:
+  selector:
+    matchLabels:
+      app: cluster-info-collector
+  template:
+    metadata:
+      labels:
+        app: cluster-info-collector
+    spec:
+      containers:
+      - name: collector
+        image: k8s.gcr.io/pause:3.8
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # GPU 정보 수집
+          GPU_COUNT=$(nvidia-smi -L 2>/dev/null | wc -l || echo "0")
+          GPU_TYPE=$(nvidia-smi --query-gpu=name --format=csv,noheader,nounits 2>/dev/null | head -1 || echo "none")
+          
+          # 전력 프로파일 감지 (배터리 존재 여부 등)
+          if [ -d "/sys/class/power_supply" ] && ls /sys/class/power_supply/BAT* >/dev/null 2>&1; then
+            POWER_PROFILE="low-power"
+          else
+            POWER_PROFILE="high-performance"  
+          fi
+          
+          # 클러스터 라벨 업데이트 (kubectl을 통해)
+          kubectl label cluster $CLUSTER_NAME \
+            hardware.karmada.io/gpu-count=$GPU_COUNT \
+            hardware.karmada.io/gpu-type=$GPU_TYPE \
+            hardware.karmada.io/power-profile=$POWER_PROFILE \
+            --overwrite
+          
+          sleep 3600  # 1시간마다 업데이트
+        env:
+        - name: CLUSTER_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.annotations['cluster.karmada.io/cluster-name']
+        volumeMounts:
+        - name: sys
+          mountPath: /sys
+          readOnly: true
+      volumes:
+      - name: sys
+        hostPath:
+          path: /sys
+      hostNetwork: true
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+# 5. MALE Controller가 참조할 클러스터 성능 기준 ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: male-cluster-classification
+  namespace: male-controller-system
+data:
+  classification-rules.yaml: |
+    # 클러스터 자동 분류 규칙
+    rules:
+      gpu:
+        conditions:
+        - gpu_count > 0
+        adjustments:
+          accuracy: +100
+          latency: -50
+          energy: -100
+      
+      edge:
+        conditions:
+        - power_profile == "low-power" OR location == "edge"
+        - network_type == "5g" AND cpu_cores < 8
+        adjustments:
+          accuracy: -100
+          latency: +100
+          energy: +200
+      
+      high-performance:
+        conditions:
+        - cpu_cores >= 32 AND memory_gb >= 64
+        adjustments:
+          accuracy: +50
+          latency: -30
+          energy: -50
+      
+      cpu:
+        conditions:
+        - cpu_cores >= 8 AND memory_gb >= 16
+        adjustments:
+          accuracy: 0
+          latency: 0
+          energy: +50
+      
+      default:
+        conditions:
+        - true  # 기본 조건
+        adjustments:
+          accuracy: -50
+          latency: +50
+          energy: +100

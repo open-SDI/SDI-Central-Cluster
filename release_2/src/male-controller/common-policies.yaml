@@ -1,0 +1,74 @@
+# 자주 사용하는 MALE 정책들을 미리 생성
+# 한 번만 실행하고 계속 사용
+
+# 1. 고성능 ML 서비스용 정책
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: high-performance-ml
+  namespace: default
+spec:
+  accuracy: 950
+  latency: 50
+  energy: 400
+  selector:
+    tier: "production"
+    performance: "high"
+  description: "고성능 프로덕션 ML 서비스용"
+---
+# 2. 개발환경용 정책
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: development-ml
+  namespace: default
+spec:
+  accuracy: 600
+  latency: 400
+  energy: 800
+  selector:
+    tier: "development"
+  description: "개발환경 ML 서비스용"
+---
+# 3. 배치 처리용 정책
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: batch-processing
+  namespace: default
+spec:
+  accuracy: 1000
+  latency: 800
+  energy: 900
+  selector:
+    workload-type: "batch"
+  description: "배치 처리 및 학습용"
+---
+# 4. 실시간 추론용 정책
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: real-time-inference
+  namespace: default
+spec:
+  accuracy: 800
+  latency: 100
+  energy: 600
+  selector:
+    workload-type: "inference"
+    priority: "realtime"
+  description: "실시간 추론 서비스용"
+---
+# 5. 엣지 디바이스용 정책
+apiVersion: opensdi.opensdi.io/v1alpha1
+kind: MALEPolicy
+metadata:
+  name: edge-optimized
+  namespace: default
+spec:
+  accuracy: 650
+  latency: 300
+  energy: 900
+  selector:
+    deployment-target: "edge"
+  description: "엣지 디바이스 최적화용"

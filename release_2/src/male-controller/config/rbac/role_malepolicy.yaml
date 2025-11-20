@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: male-controller-system  
+  name: male-controller-malepolicy-role
+rules:
+- apiGroups:
+  - opensdi.opensdi.io
+  resources:
+  - malepolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - opensdi.opensdi.io
+  resources:
+  - malepolicies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - opensdi.opensdi.io
+  resources:
+  - malepolicies/status
+  verbs:
+  - get
+  - patch
+  - update

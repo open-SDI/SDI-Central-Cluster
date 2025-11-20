@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sdi-manifest-bridge-svc
+  namespace: sdi-manifest-bridge
+  labels:
+    app: sdi-manifest-bridge
+spec:
+  type: ClusterIP
+  selector:
+    app: sdi-manifest-bridge
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000

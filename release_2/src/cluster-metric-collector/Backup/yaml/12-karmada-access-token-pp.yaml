@@ -1,0 +1,14 @@
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: karmada-access-token-to-host
+  namespace: monitor
+spec:
+  resourceSelectors:
+    - apiVersion: v1
+      kind: Secret
+      name: karmada-access-token
+      namespace: monitor
+  placement:
+    clusterAffinity:
+      clusterNames: ["${HOST_CLUSTER_NAME}"]
