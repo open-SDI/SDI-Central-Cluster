@@ -33,18 +33,21 @@ This repository contains the complete implementation of a multi-cluster orchestr
 
 ```
 KETI_SDI_Central_Cluster/
-├── SDI/                              # Core SDI platform modules
-│   ├── male-controller/              # MALE Policy Controller (Kubernetes Operator)
-│   ├── analysis-engine/              # Analysis engine for metric processing
-│   ├── cluster-metric-collector/     # Cluster-wide metric collection
-│   ├── API-Server/                   # API server for workload management
-│   └── karmada/                      # Karmada configuration
-├── release_2/                         # Release 2 components
-│   ├── SDI-Orchestration/            # Orchestration components
-│   └── install-ros2/                 # ROS2 installation scripts
-├── central_cluster_etri_settings/    # ETRI server configuration
-├── karmada-ip-settings/              # Karmada IP management scripts
-└── sdi_platform_network_auto_patch.sh # Kubernetes IP auto-patch script
+├── backups/
+│   └── pki/                          # PKI material backups
+├── configs/
+│   ├── central-cluster/              # ETRI server configuration
+│   ├── karmada/                      # Karmada configs and IP policies
+│   └── kubernetes/                   # Cluster-scoped manifests (k3s, CoreDNS, etc.)
+├── deploy/
+│   ├── release_2/                    # Release-grade orchestration bundle
+│   └── SDI/                          # Core SDI platform modules
+├── infrastructure/
+│   └── networking/tunnel/            # Networking and tunneling utilities
+├── scripts/
+│   ├── cluster/                      # Operational scripts (e.g., IP auto patch)
+│   └── etri-setup/                   # Provisioning helpers (kept intact)
+└── src/                              # Standalone services and libraries
 ```
 
 ## Components
@@ -57,7 +60,7 @@ Custom Kubernetes scheduler that performs workload scheduling based on:
 - Mixed-criticality scheduling algorithm
 - InfluxDB metric integration
 
-**Location**: `release_2/SDI-Orchestration/SDI-Scheduler/`
+**Location**: `deploy/release_2/SDI-Orchestration/SDI-Scheduler/`
 
 ### 2. MALE Controller
 
@@ -69,43 +72,43 @@ Kubernetes Operator built with Kubebuilder that manages MALEPolicy CRD for ML wo
 - Real-time policy application through annotations and environment variables
 - Karmada multi-cluster integration
 
-**Location**: `SDI/male-controller/`
+**Location**: `deploy/SDI/male-controller/`
 
 ### 3. MALE-Advisor (Policy Engine)
 
 Policy decision engine that determines optimal MALE policies based on A-L-E Score.
 
-**Location**: `release_2/SDI-Orchestration/MALE-Advisor/`
+**Location**: `deploy/release_2/SDI-Orchestration/MALE-Advisor/`
 
 ### 4. MALE-Profiler (Analysis Engine)
 
 Workload profiling module that analyzes collected metrics and generates performance characteristics.
 
-**Location**: `release_2/SDI-Orchestration/MALE-Profiler/`
+**Location**: `deploy/release_2/SDI-Orchestration/MALE-Profiler/`
 
 ### 5. Analysis Engine
 
 Python-based analysis engine for processing metrics and managing SDI devices.
 
-**Location**: `SDI/analysis-engine/`
+**Location**: `deploy/SDI/analysis-engine/`
 
 ### 6. Metric-Collector
 
 Metric collection stack including InfluxDB time-series database.
 
-**Location**: `release_2/SDI-Orchestration/Metric-Collector/` and `SDI/cluster-metric-collector/`
+**Location**: `deploy/release_2/SDI-Orchestration/Metric-Collector/` and `deploy/SDI/cluster-metric-collector/`
 
 ### 7. Karmada Integration
 
 Multi-cluster orchestration configuration.
 
-**Location**: `SDI/karmada/`, `SDI/male-controller/karmada-integration/`
+**Location**: `deploy/SDI/karmada/`, `deploy/SDI/male-controller/karmada-integration/`
 
 ### 8. Network Auto-Patch Script
 
 Automated Kubernetes IP management script.
 
-**Location**: `sdi_platform_network_auto_patch.sh`
+**Location**: `scripts/cluster/sdi_platform_network_auto_patch.sh`
 
 ## Prerequisites
 
@@ -145,8 +148,8 @@ kubectl apply -f MALE-Profiler-deploy.yaml
 
 ## Documentation
 
-- **SDI-Orchestration Guide**: `release_2/SDI-Orchestration/README.md`
-- **MALE Controller**: `SDI/male-controller/README.md`
+- **SDI-Orchestration Guide**: `deploy/release_2/SDI-Orchestration/README.md`
+- **MALE Controller**: `deploy/SDI/male-controller/README.md`
 
 ## License
 
