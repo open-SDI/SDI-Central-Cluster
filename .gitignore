@@ -1,0 +1,50 @@
+# Karmada 바이너리
+scripts/etri-setup/karmada/karmadactl
+scripts/etri-setup/karmada/karmadactl-linux-amd64.tgz
+
+# Karmada 이미지 및 CRD 파일 (대용량)
+scripts/etri-setup/karmada/download-scripts/karmada-images-*.tar
+scripts/etri-setup/karmada/download-scripts/karmada-crds-*.tar.gz
+
+# Kubernetes 백업 파일
+k8s_backup_*.tar.gz
+
+# Kubeconfig 파일 (보안)
+*kubeconfig*.yaml
+*.kubeconfig
+*-kubeconfig.yaml
+scripts/etri-setup/karmada/edge-cluster-kubeconfig.yaml
+
+# Karmada CRD 압축 해제 디렉토리
+scripts/etri-setup/karmada/crds/
+
+# Helm values (로컬 설정)
+scripts/etri-setup/karmada/helm-values.yaml
+
+# 임시 파일
+*.tmp
+*.swp
+*.swo
+*~
+
+# 로그 파일
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# OS
+Thumbs.db
+.DS_Store
