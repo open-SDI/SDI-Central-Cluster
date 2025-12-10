@@ -2,6 +2,8 @@
 
 Multi-cluster based scheduling and orchestration platform for Kubernetes workloads with focus on edge computing and machine learning acceleration.
 
+> **Production Ready** - This platform is designed for production deployments with comprehensive monitoring and observability support.
+
 ## Overview
 
 This repository contains the complete implementation of a multi-cluster orchestration system designed for managing distributed workloads across central and edge clusters. The platform provides intelligent scheduling, policy-based workload management, and real-time metric collection for optimal resource utilization.
