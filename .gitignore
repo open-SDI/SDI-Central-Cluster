@@ -48,3 +48,34 @@ env/
 # OS
 Thumbs.db
 .DS_Store
+
+# ─────────────────────────────────────────────
+# 보안: 자격증명/PKI 절대 커밋 금지 (2026 보안정리 추가)
+# ─────────────────────────────────────────────
+# 개인키 · 인증서
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+# PKI 백업 디렉토리
+**/pki/
+**/pki-bak/
+# kubeconfig / 클러스터 접속 설정
+*.config
+*admin*.yaml
+*admin*.config
+karmada.config
+karmada.local.config
+# InfluxDB / 토큰 · 시크릿
+.env
+*.env
+secrets.*
+*-secret.yaml
+
+# ─────────────────────────────────────────────
+# 저장소 위생: 커밋된 파이썬 가상환경 (~339MB)
+# ─────────────────────────────────────────────
+**/analysis-engine-env/
+**/*-env/bin/
+**/site-packages/
