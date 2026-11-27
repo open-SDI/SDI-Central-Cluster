@@ -220,12 +220,34 @@ def test_etri_example_conversion():
     assert "rtPeriodMs" not in mw["spec"]["mcSpec"]
     assert mw["spec"]["importance"] == {"accuracy": 0.3, "latency": 0.5, "energy": 0.2}
 
-    # 합의: Service는 Deployment의 정책에 포함되어 같은 클러스터로 전파
+    # Service 는 Deployment 가 결정된 클러스터로 따라감: 정책에는 Deployment 만, propagateDeps + annotation
     pp = by_kind(resources, "PropagationPolicy")[0]
     selected = {(s["kind"], s["name"]) for s in pp["spec"]["resourceSelectors"]}
-    assert ("Deployment", "object-detection") in selected
-    assert ("Service", "object-detection") in selected
+    assert selected == {("Deployment", "object-detection")}
+    assert pp["spec"]["propagateDeps"] is True
     assert pp["spec"]["schedulerName"] == "sdi-scheduler"
+    dep = by_kind(resources, "Deployment")[0]
+    assert dep["metadata"]["annotations"]["sdi.keti.dev/dependent-services"] == "object-detection"
+
+
+def test_support_in_selectors_when_follow_off(monkeypatch):
+    """SDI_SUPPORT_FOLLOW_WORKLOAD=off 이면 예전처럼 Service 를 Deployment 정책의 resourceSelectors 에 넣는다."""
+    monkeypatch.setenv("SDI_SUPPORT_FOLLOW_WORKLOAD", "off")
+    resources = convert_bundle(IaCMaleBundle(**etri_example_bundle()))
+    pp = by_kind(resources, "PropagationPolicy")[0]
+    selected = {(s["kind"], s["name"]) for s in pp["spec"]["resourceSelectors"]}
+    assert ("Service", "object-detection") in selected
+    assert "propagateDeps" not in pp["spec"]
+    dep = by_kind(resources, "Deployment")[0]
+    assert "sdi.keti.dev/dependent-services" not in (dep["metadata"].get("annotations") or {})
+
+
+def test_convert_does_not_change_input_bundle():
+    """annotation 은 변환 결과 사본에만 붙고 입력 번들은 그대로."""
+    bundle = IaCMaleBundle(**etri_example_bundle())
+    convert_bundle(bundle)
+    for wm in bundle.workloadManifests:
+        assert "sdi.keti.dev/dependent-services" not in (wm.manifest.get("metadata", {}).get("annotations") or {})
 
 
 def test_apply_order():
@@ -260,9 +282,17 @@ def test_patrol_robot_mission_grouping():
         assert mw["spec"]["mcSpec"]["missionId"] == "patrol-robot"
     assert {mw["spec"]["mission"] for mw in workloads} == {"object-detection", "slam"}
 
-    # 공유 ConfigMap은 첫 번째 Deployment의 정책에만 포함 (중복 selector 방지)
+    # 정책은 Deployment 마다 하나, 공유 ConfigMap 은 propagateDeps 로 각 Deployment 를 따라감
     policies = by_kind(resources, "PropagationPolicy")
     assert len(policies) == 2
+    assert all(p["spec"]["propagateDeps"] is True for p in policies)
+    assert not any(s["kind"] == "ConfigMap" for p in policies for s in p["spec"]["resourceSelectors"])
+
+
+def test_patrol_robot_shared_configmap_follow_off(monkeypatch):
+    """예전 방식: 공유 ConfigMap 은 첫 번째 Deployment 의 정책에만 포함(중복 selector 방지)."""
+    monkeypatch.setenv("SDI_SUPPORT_FOLLOW_WORKLOAD", "off")
+    policies = by_kind(convert_bundle(IaCMaleBundle(**patrol_robot_bundle())), "PropagationPolicy")
     cm_owners = [p for p in policies
                  if any(s["kind"] == "ConfigMap" for s in p["spec"]["resourceSelectors"])]
     assert len(cm_owners) == 1

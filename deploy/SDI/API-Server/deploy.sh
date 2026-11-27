@@ -28,5 +28,14 @@ kubectl apply -f "${MANIFEST_DIR}/03-deployment.yaml"
 echo "Applying 04-service.yaml..."
 kubectl apply -f "${MANIFEST_DIR}/04-service.yaml"
 
+# 6. Karmada 리소스 해석기 설정(Service 등 부속 리소스가 Deployment 를 따라가게 함). Karmada API 서버에 적용
+KARMADA_KUBECONFIG="${KARMADA_KUBECONFIG:-/etc/karmada/karmada-apiserver.config}"
+if [ -f "${KARMADA_KUBECONFIG}" ]; then
+  echo "Applying karmada_manifests/sdi-deployment-dependencies.yaml (Karmada)..."
+  kubectl --kubeconfig "${KARMADA_KUBECONFIG}" apply -f "${BASE_DIR}/karmada_manifests/sdi-deployment-dependencies.yaml"
+else
+  echo "KARMADA_KUBECONFIG(${KARMADA_KUBECONFIG}) 없음: karmada_manifests/ 는 Karmada API 서버에 따로 적용하세요"
+fi
+
 echo -e "\nDeployment complete. All resources have been applied to the 'sdi-manifest-bridge' namespace."
 echo "To check the status of the deployment, run: kubectl get all -n sdi-manifest-bridge"
