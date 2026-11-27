@@ -19,7 +19,7 @@ spec:
       containers:
         - name: sdi-manifest-bridge
           # 중요: 이 이미지는 CI/CD 파이프라인을 통해 빌드하고 푸시한 이미지로 교체해야 합니다.
-          image: ketidevit2/sdi-manifest-bridge:v0.2.9
+          image: ketidevit2/sdi-manifest-bridge:v0.4.22-devwarn-1126
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
