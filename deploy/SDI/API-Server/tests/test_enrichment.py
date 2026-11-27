@@ -1,71 +1,50 @@
-
-import pytest
+"""레거시 /v1/apply(/deploy) 경로: Ansible 입력 -> [Deployment, MaleWorkload, PropagationPolicy]."""
 from sdi_manifest_bridge.core.enrichment import enrich_manifest
 
+
 def test_enrich_manifest_basic():
-    """
-    Tests the enrichment of a manifest with basic required inputs.
-    """
-    user_input = {
+    result = enrich_manifest({
         "mission": "mission-critical",
         "container_name": "data-processor",
-        "image": "ubuntu:latest"
-    }
+        "image": "ubuntu:latest",
+    })
+    assert [r["kind"] for r in result] == ["Deployment", "MaleWorkload", "PropagationPolicy"]
+    dep, mw, pp = result
 
-    result = enrich_manifest(user_input)
-
-    # Check metadata
-    assert result["kind"] == "Pod"
-    assert result["metadata"]["name"] == "mission-critical-data-processor"
-    assert result["metadata"]["labels"]["mission"] == "mission-critical"
-    assert result["metadata"]["annotations"]["male.sdi.dev/mission"] == "mission-critical"
-
-    # Check spec
-    assert result["spec"]["schedulerName"] == "sdi-scheduler"
-    assert result["spec"]["priorityClassName"] == "real-time"
-    assert result["spec"]["nodeSelector"]["role"] == "edge"
-
-    # Check container details
-    assert len(result["spec"]["containers"]) == 1
-    container = result["spec"]["containers"][0]
+    assert dep["metadata"]["name"] == "mission-critical-data-processor"
+    assert dep["metadata"]["labels"]["mission"] == "mission-critical"
+    container = dep["spec"]["template"]["spec"]["containers"][0]
     assert container["name"] == "data-processor"
     assert container["image"] == "ubuntu:latest"
 
+    assert mw["spec"]["targetRef"] == {
+        "apiVersion": "apps/v1", "kind": "Deployment", "name": "mission-critical-data-processor"}
+
+    assert pp["spec"]["schedulerName"] == "sdi-scheduler"
+    placement = pp["spec"]["placement"]
+    assert "clusterAffinities" not in placement
+    assert placement["spreadConstraints"] == [
+        {"spreadByField": "cluster", "maxGroups": 1, "minGroups": 1}]
+
+
 def test_enrich_manifest_with_all_options():
-    """
-    Tests the enrichment of a manifest with all optional fields provided.
-    """
-    user_input = {
+    result = enrich_manifest({
         "mission": "long-running-job",
         "container_name": "ml-worker",
         "image": "tensorflow/tensorflow:latest",
-        "labels": {
-            "team": "ml-team",
-            "project": "project-x"
-        },
-        "annotations": {
-            "monitoring.prometheus.io/scrape": "true"
-        },
+        "labels": {"team": "ml-team", "project": "project-x"},
+        "annotations": {"monitoring.prometheus.io/scrape": "true"},
         "accuracy": 0.95,
         "latency": 0.5,
-        "energy": 0.8
-    }
+        "energy": 0.8,
+        "criticality": "C",
+    })
+    dep, mw, _ = result
 
-    result = enrich_manifest(user_input)
+    assert dep["metadata"]["labels"]["mission"] == "long-running-job"
+    assert dep["metadata"]["labels"]["team"] == "ml-team"
+    assert dep["metadata"]["labels"]["project"] == "project-x"
+    assert dep["metadata"]["annotations"]["monitoring.prometheus.io/scrape"] == "true"
 
-    # Check merged labels
-    assert result["metadata"]["labels"]["mission"] == "long-running-job"
-    assert result["metadata"]["labels"]["team"] == "ml-team"
-    assert result["metadata"]["labels"]["project"] == "project-x"
-
-    # Check merged annotations
-    assert result["metadata"]["annotations"]["male.sdi.dev/mission"] == "long-running-job"
-    assert result["metadata"]["annotations"]["monitoring.prometheus.io/scrape"] == "true"
-    assert result["metadata"]["annotations"]["male.sdi.dev/accuracy"] == "0.95"
-    assert result["metadata"]["annotations"]["male.sdi.dev/latency"] == "0.5"
-    assert result["metadata"]["annotations"]["male.sdi.dev/energy"] == "0.8"
-
-    # Check basic fields are still correct
-    assert result["metadata"]["name"] == "long-running-job-ml-worker"
-    assert result["spec"]["containers"][0]["name"] == "ml-worker"
-    assert result["spec"]["containers"][0]["image"] == "tensorflow/tensorflow:latest"
+    assert mw["spec"]["importance"] == {"accuracy": 0.95, "latency": 0.5, "energy": 0.8}
+    assert mw["spec"]["mcSpec"]["criticality"] == "C"
