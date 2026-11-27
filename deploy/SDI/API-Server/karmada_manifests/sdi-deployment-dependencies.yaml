@@ -1,0 +1,25 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: sdi-deployment-dependencies
+  labels:
+    managed-by: sdi-manifest-bridge
+spec:
+  target:
+    apiVersion: apps/v1
+    kind: Deployment
+  customizations:
+    dependencyInterpretation:
+      luaScript: |
+        local kube = require("kube")
+        function GetDependencies(desiredObj)
+          local deps = kube.getPodDependencies(desiredObj.spec.template, desiredObj.metadata.namespace)
+          if deps == nil then deps = {} end
+          local ann = desiredObj.metadata.annotations
+          if ann ~= nil and ann["sdi.keti.dev/dependent-services"] ~= nil then
+            for name in string.gmatch(ann["sdi.keti.dev/dependent-services"], "[^,%s]+") do
+              table.insert(deps, {apiVersion = "v1", kind = "Service", namespace = desiredObj.metadata.namespace, name = name})
+            end
+          end
+          return deps
+        end

@@ -3,10 +3,12 @@
 
 - maleBindings → MaleWorkload CR (외부 API의 rtPeriodMs 등 단위 명시형 필드를 CRD 필드 rtPeriod 등으로 매핑,
   targetRef는 apiVersion/kind/name만 유지)
-- Deployment 단위 PropagationPolicy 생성 (Service/ConfigMap/Secret 등 support 리소스는
-  참조하는 Deployment의 정책에 포함되어 같은 클러스터로 전파)
+- Deployment 단위 PropagationPolicy 생성. Service/ConfigMap/Secret 등 support 리소스는 Deployment 가
+  결정된 클러스터로 따라 보냄(propagateDeps). Service 는 Deployment annotation 에 이름을 적고
+  ResourceInterpreterCustomization(karmada_manifests/sdi-deployment-dependencies.yaml)이 의존 리소스로 읽음
 - 전달 보류(suspension.dispatching) 판단, 적용 단계(apply_order · apply_levels)
 """
+import copy
 import json
 from typing import Any, Dict, List
 
@@ -20,6 +22,8 @@ from .models import IaCMaleBundle, MaleBinding, MCSpec
 from .validate import _algorithm, normalize_bundle
 
 MALE_GROUP = 'male.keti.dev'
+# Deployment 가 쓰는 Service 이름(쉼표로 구분). ResourceInterpreterCustomization 이 의존 리소스로 읽는다
+DEPENDENT_SERVICES_ANNOTATION = 'sdi.keti.dev/dependent-services'
 MALE_VERSION = 'v1alpha1'
 
 # 워크로드(스코어링 대상) 외의 kind는 support 리소스로 취급
@@ -290,10 +294,12 @@ def _build_propagationpolicy(bundle: IaCMaleBundle, deployment: Dict[str, Any],
     name = meta['name']
     namespace = meta.get('namespace', 'default')
 
-    # 합의 사항: 스코어링 루트는 Deployment, support 리소스는 같은 정책에 포함하여
-    # 결정된 클러스터로 함께 전파
+    # 스코어링 루트는 Deployment. support 리소스는 결정된 클러스터로 함께 보낸다.
+    # 기본: 정책에는 Deployment 만 두고 propagateDeps 로 따라 보냄. resourceSelectors 에 같이 넣으면
+    # Karmada 가 리소스마다 ResourceBinding 을 따로 만들어 스케줄러가 다른 클러스터를 고를 수 있다
+    follow = settings.support_follow_workload()
     selectors = [{'apiVersion': deployment['apiVersion'], 'kind': deployment['kind'], 'name': name}]
-    for res in support:
+    for res in ([] if follow else support):
         selectors.append({
             'apiVersion': res['apiVersion'],
             'kind': res['kind'],
@@ -314,6 +320,8 @@ def _build_propagationpolicy(bundle: IaCMaleBundle, deployment: Dict[str, Any],
             'schedulerName': 'sdi-scheduler',
         },
     }
+    if follow:
+        policy['spec']['propagateDeps'] = True
     if hold:
         # 결정(스케줄링)은 그대로 하고 멤버 클러스터로 내려보내는 것만 멈춤. Operator 가 고정 후 해제
         policy['metadata']['annotations'] = {HOLD_DISPATCH_ANNOTATION: HOLD_DISPATCH_VALUE}
@@ -327,7 +335,8 @@ def convert_bundle(bundle: IaCMaleBundle) -> List[Dict[str, Any]]:
     반환 순서 = 합의된 적용 순서 (ConfigMap/Secret -> 워크로드 -> MaleWorkload -> PropagationPolicy).
     """
     bundle, _, _ = normalize_bundle(bundle)   # 협의 규격 칸을 내부 칸으로(여러 번 불러도 같음)
-    manifests_by_id = {wm.id: wm.manifest for wm in bundle.workloadManifests}
+    # 사본으로 다룸: Deployment 에 annotation 을 붙여도 호출한 쪽의 번들은 그대로
+    manifests_by_id = {wm.id: copy.deepcopy(wm.manifest) for wm in bundle.workloadManifests}
 
     deployments = [m for m in manifests_by_id.values() if m.get('kind') == 'Deployment']
     supports = [m for m in manifests_by_id.values() if m.get('kind') in SUPPORT_KINDS]
@@ -354,14 +363,16 @@ def convert_bundle(bundle: IaCMaleBundle) -> List[Dict[str, Any]]:
         if hold_hc_dispatch_enabled() and (hc or pinned or hold_all) and not prepinned:
             hold_names.add(target['metadata']['name'])
 
-    # support 리소스는 참조하는 첫 Deployment의 정책에만 포함 (중복 selector 방지)
+    # 예전 방식(SDI_SUPPORT_FOLLOW_WORKLOAD=off): support 리소스는 참조하는 첫 Deployment 의 정책에만 포함
+    # (중복 selector 방지). 기본 방식: 각 Deployment 가 쓰는 것 모두를 의존 리소스로(공유 리소스는 양쪽 클러스터로)
+    follow = settings.support_follow_workload()
     claimed = set()
     for dep in deployments:
         refs = _deployment_refs(dep)
         owned = []
         for res in supports:
             key = (res['kind'], res['metadata']['name'])
-            if key in claimed:
+            if key in claimed and not follow:
                 continue
             kind = res['kind']
             if kind in ('ConfigMap', 'Secret') and res['metadata']['name'] in refs[kind]:
@@ -370,6 +381,9 @@ def convert_bundle(bundle: IaCMaleBundle) -> List[Dict[str, Any]]:
             elif kind == 'Service' and _service_matches(res, dep):
                 owned.append(res)
                 claimed.add(key)
+        services = sorted(r['metadata']['name'] for r in owned if r['kind'] == 'Service')
+        if follow and services:
+            dep.setdefault('metadata', {}).setdefault('annotations', {})[DEPENDENT_SERVICES_ANNOTATION] = ','.join(services)
         resources.append(_build_propagationpolicy(bundle, dep, owned, hold=dep['metadata']['name'] in hold_names))
 
     resources.sort(key=lambda r: apply_order(r.get('kind')))

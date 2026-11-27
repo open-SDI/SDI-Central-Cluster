@@ -21,6 +21,8 @@ SDI Manifest Bridge는 단순화된 명세(Manifest)를 입력받아 쿠버네�
 │   ├── 02-configmap.yaml
 │   ├── 03-deployment.yaml
 │   └── 04-service.yaml
+├── karmada_manifests/    # Karmada API 서버에 적용하는 설정
+│   └── sdi-deployment-dependencies.yaml  # Deployment 부속 리소스(Service 포함) 해석 규칙
 ├── sdi_manifest_bridge/  # FastAPI 애플리케이션 소스 코드
 │   ├── core/
 │   │   ├── models.py         # IaCMaleBundle 입력 스키마
@@ -56,6 +58,8 @@ chmod +x deploy.sh
 ```
 
 스크립트는 `kubernetes_manifests` 디렉토리의 YAML 파일들을 순서대로 적용하여, 독립된 `sdi-manifest-bridge` 네임스페이스에 모든 리소스를 생성합니다.
+마지막으로 `karmada_manifests/sdi-deployment-dependencies.yaml` 을 Karmada API 서버(`KARMADA_KUBECONFIG`, 기본 `/etc/karmada/karmada-apiserver.config`)에 적용합니다.
+이 설정이 있어야 번들의 Service · ConfigMap · Secret 이 Deployment 가 결정된 클러스터로 따라갑니다.
 
 ## 환경 변수 스위치
 
@@ -71,6 +75,7 @@ chmod +x deploy.sh
 | `SDI_PREPIN_TARGET` | 꺼짐 | "클러스터/노드" 기체 지정 작업은 보류하지 않음(Operator 가 미리 고정) |
 | `SDI_HOLD_PREPINNED_NONHC` | 꺼짐 | `SDI_PREPIN_TARGET` 이 켜져 있어도 기체 지정 MC/LC 는 보류 |
 | `SDI_HOLD_SKIP_EDGE_PATH` | 꺼짐 | `SDI_HOLD_ALL_DISPATCH` 가 켜져 있어도 placement edge · cloud 인 MC/LC 는 보류하지 않음 |
+| `SDI_SUPPORT_FOLLOW_WORKLOAD` | 켬 | 정책에는 Deployment 만 두고 `propagateDeps` 로 Service · ConfigMap · Secret 을 Deployment 가 결정된 클러스터로 보냄(Service 이름은 Deployment annotation `sdi.keti.dev/dependent-services`). `false` · `0` · `off` 면 예전처럼 정책 resourceSelectors 에 같이 넣음 |
 | `SDI_CATALOG_REFRESH_S` | `15` | 카탈로그 · 예측표를 뒤에서 다시 읽는 간격(초), `0` 이면 끔(시작 때) |
 | `SDI_CATALOG_CONFIGMAP` | `karmada-system/sdi-workload-catalog` | 워크로드 카탈로그 ConfigMap(키 `catalog.yaml`) |
 | `SDI_PREDICTIONS_CONFIGMAP` | `karmada-system/sdi-predictions` | 실행 시간 예측표 ConfigMap(키 `predictions.yaml`) |

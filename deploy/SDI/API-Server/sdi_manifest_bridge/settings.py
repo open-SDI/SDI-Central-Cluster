@@ -25,6 +25,12 @@ HOLD_PREPINNED_NONHC_ENV = 'SDI_HOLD_PREPINNED_NONHC'
 # on: SDI_HOLD_ALL_DISPATCH 가 켜져 있어도 placement edge|cloud 인 MC/LC 는 보류하지 않음. 기본 꺼짐
 HOLD_SKIP_EDGE_PATH_ENV = 'SDI_HOLD_SKIP_EDGE_PATH'
 
+# --- 부속 리소스 전파 (core/convert.py) -------------------------------------
+# false|0|off: Service · ConfigMap · Secret 을 예전처럼 Deployment 정책의 resourceSelectors 에 넣음(Karmada 가
+# 리소스마다 따로 배치해 다른 클러스터로 갈 수 있음). 기본 켬 = 정책에는 Deployment 만 두고 propagateDeps 로
+# Deployment 가 결정된 클러스터에 따라 보냄(Service 는 Deployment annotation + ResourceInterpreterCustomization)
+SUPPORT_FOLLOW_ENV = 'SDI_SUPPORT_FOLLOW_WORKLOAD'
+
 # --- 카탈로그 · 예측표 (core/consistency.py) --------------------------------
 # 뒤에서 카탈로그 · 예측표를 다시 읽는 간격(초). 0 이면 끔. 기본 15
 CATALOG_REFRESH_ENV = 'SDI_CATALOG_REFRESH_S'
@@ -76,6 +82,10 @@ def hold_prepinned_nonhc() -> bool:
 
 def hold_skip_edge_path() -> bool:
     return env_on(HOLD_SKIP_EDGE_PATH_ENV)
+
+
+def support_follow_workload() -> bool:
+    return os.environ.get(SUPPORT_FOLLOW_ENV, '').strip().lower() not in ('false', '0', 'off')
 
 
 def catalog_refresh_s() -> float:
